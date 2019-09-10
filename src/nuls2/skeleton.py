@@ -5,7 +5,7 @@ console script. To run this script uncomment the following lines in the
 [options.entry_points] section in setup.cfg:
 
     console_scripts =
-         fibonacci = nuls2_python.skeleton:run
+         fibonacci = nuls2.skeleton:run
 
 Then run `python setup.py install` which will install the command `fibonacci`
 inside your current environment.
@@ -19,7 +19,7 @@ import argparse
 import sys
 import logging
 
-from nuls2_python import __version__
+from nuls2 import __version__
 
 __author__ = "Jonathan Schemoul"
 __copyright__ = "Jonathan Schemoul"
