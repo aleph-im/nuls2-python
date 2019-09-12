@@ -2,7 +2,7 @@ from nuls2.model.data import (write_with_length, read_by_length,
                               hash_from_address, address_from_hash,
                               VarInt, parse_varint, write_varint,
                               PLACE_HOLDER, ADDRESS_LENGTH, HASH_LENGTH)
-from nulsexplorer.modules.register import register_tx_type, register_tx_processor
+from nuls2.model.txtypes.register import register_tx_type
 from .base import BaseModuleData
 
 import struct
@@ -80,7 +80,7 @@ class CreateContractData(BaseModuleData):
                 output += write_with_length(argitem)
         return output
 
-register_tx_type(100, CreateContractData)
+register_tx_type(15, CreateContractData)
 
 class CallContractData(BaseModuleData):
     @classmethod
@@ -96,6 +96,7 @@ class CallContractData(BaseModuleData):
         cursor += ADDRESS_LENGTH
         md['contractAddress'] = address_from_hash(md['contractAddress'])
 
+        # TODO: change value to 256bit bigint
         md['value'] = struct.unpack("q", buffer[cursor:cursor+8])[0]
         cursor += 8
         md['gasLimit'] = struct.unpack("q", buffer[cursor:cursor+8])[0]
@@ -134,9 +135,9 @@ class CallContractData(BaseModuleData):
     async def to_buffer(cls, md):
         output = hash_from_address(md['sender'])
         output += hash_from_address(md['contractAddress'])
-        output += struct.pack("q", md['value'])
-        output += struct.pack("q", md['gasLimit'])
-        output += struct.pack("q", md['price'])
+        output += md['value'].to_bytes(32, 'little')
+        output += struct.pack("Q", md['gasLimit'])
+        output += struct.pack("Q", md['price'])
         output += write_with_length(md['methodName'].encode('utf-8'))
         output += write_with_length(md['methodDesc'].encode('utf-8'))
         output += bytes([len(md['args'])])
@@ -150,7 +151,7 @@ class CallContractData(BaseModuleData):
                 output += write_with_length(argitem)
         return output
 
-register_tx_type(101, CallContractData)
+register_tx_type(16, CallContractData)
 
 class DeleteContractData(BaseModuleData):
     @classmethod
@@ -173,62 +174,30 @@ class DeleteContractData(BaseModuleData):
         output += hash_from_address(md['contractAddress'])
         return output
 
-register_tx_type(102, DeleteContractData)
+register_tx_type(17, DeleteContractData)
 
-class TransferContractData(BaseModuleData):
-    @classmethod
-    async def from_buffer(cls, buffer, cursor=0):
-        md = dict()
-        md['originTxHash'] = buffer[cursor:cursor+HASH_LENGTH].hex()
-        cursor += HASH_LENGTH
+# class TransferContractData(BaseModuleData):
+#     @classmethod
+#     async def from_buffer(cls, buffer, cursor=0):
+#         md = dict()
+#         md['originTxHash'] = buffer[cursor:cursor+HASH_LENGTH].hex()
+#         cursor += HASH_LENGTH
 
-        md['contractAddress'] = buffer[cursor:cursor+ADDRESS_LENGTH]
-        cursor += ADDRESS_LENGTH
-        md['contractAddress'] = address_from_hash(md['contractAddress'])
+#         md['contractAddress'] = buffer[cursor:cursor+ADDRESS_LENGTH]
+#         cursor += ADDRESS_LENGTH
+#         md['contractAddress'] = address_from_hash(md['contractAddress'])
 
-        md['success'] = int(buffer[cursor])
-        cursor += 1
+#         md['success'] = int(buffer[cursor])
+#         cursor += 1
 
-        return cursor, md
+#         return cursor, md
 
-    @classmethod
-    async def to_buffer(cls, md):
-        output = unhexlify(md['originTxHash'])
-        output += hash_from_address(md['contractAddress'])
-        output += bytes([len(md['success'])])
+#     @classmethod
+#     async def to_buffer(cls, md):
+#         output = unhexlify(md['originTxHash'])
+#         output += hash_from_address(md['contractAddress'])
+#         output += bytes([len(md['success'])])
 
-        return output
+#         return output
 
-register_tx_type(103, TransferContractData)
-
-
-async def process_contract_data(tx):
-    # This function takes a tx object and modifies it in place.
-    # we assume we have access to a config since we are in a processor
-    from nulsexplorer.main import api_request
-    async with aiohttp.ClientSession() as session:
-        LOGGER.info("Retrieving contract result for TX %s" % str(tx.hash))
-        result = await api_request(session, 'contract/result/%s' % str(tx.hash))
-        if result is None:
-            LOGGER.warning("Can't get contract info for TX %s" % str(tx.hash))
-
-        if result.get('flag', False):
-            tx.module_data['result'] = result['data']
-
-            if tx.type == 100: # contract creation
-                contract_address = tx.module_data['result'].get('contractAddress')
-                if contract_address is not None:
-                    LOGGER.info("Retrieving contract details for %s" % contract_address)
-                    result = await api_request(session, 'contract/info/%s' % contract_address)
-                    if result is None:
-                        LOGGER.warning("Can't get contract details for %s" % contract_address)
-                    else:
-                        print(repr(result))
-                        tx.module_data['details'] = result
-
-                else:
-                    LOGGER.warning("Can't get contract details for %s" % contract_address)
-        else:
-            LOGGER.warning("Can't get contract info for TX %s" % str(tx.hash))
-
-register_tx_processor(process_contract_data, tx_types=[100,101,102,103], step="pre")
+# register_tx_type(103, TransferContractData)
