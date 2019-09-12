@@ -90,8 +90,16 @@ def address_from_hash(addr, prefix="tNULS"):
     addr = b58_encode(addr+bytes((getxor(addr), )))
     return prefix + string.ascii_letters[len(prefix)-1] + addr
 
-def hash_from_address(hash):
-    return b58_decode(hash)[:-1]
+def hash_from_address(address):
+    if address.startswith('NULS'):
+        address = address[5:]
+    elif address.startswith('tNULS'):
+        address = address[6:]
+    else:
+        raise NotImplementedError("transfers on other chains not implemented yet!")
+    
+    return b58_decode(address)[:-1]
+    
 
 def public_key_to_hash(pub_key, chain_id=2, address_type=1):
     sha256_digest = hashlib.sha256(pub_key).digest()
