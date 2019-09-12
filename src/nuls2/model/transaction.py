@@ -194,7 +194,7 @@ class Transaction(BaseNulsData):
             output += await TX_TYPES_REGISTER[self.type].to_buffer(self.module_data)
         else:
             output += b''
-
+            
         return output
     
     async def _write_coin_data(self):
