@@ -411,7 +411,7 @@ class Transaction(BaseNulsData):
     async def calculate_fee(self):
         size = len(await self.serialize())
         unit_fee = UNIT_FEE
-        if self.type in [2, 10, 101]:
+        if self.type in [2, 10, 16]:
             unit_fee = CHEAP_UNIT_FEE
 
         fee = unit_fee * math.ceil(size / KB)  # per kb
