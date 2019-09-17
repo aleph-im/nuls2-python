@@ -5,7 +5,6 @@ try:
     from secp256k1 import PrivateKey, PublicKey
 except ImportError:
     print("Can't import secp256k1, can't verify and sign tx.")
-import six
 import time
 import struct
 import hashlib
