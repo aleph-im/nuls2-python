@@ -145,12 +145,12 @@ class NulsSignature(BaseNulsData):
 
     @classmethod
     def sign_data(cls, pri_key, digest_bytes):
-        privkey = PrivateKey(pri_key, raw=True) # we expect to have a private key as bytes. unhexlify it before passing.
+        privkey = PrivateKey(pri_key) # we expect to have a private key as bytes. unhexlify it before passing.
         item = cls()
-        item.pub_key = privkey.pubkey.serialize()
+        item.pub_key = privkey.public_key.format()
         item.digest_bytes = digest_bytes
-        sig_check = privkey.ecdsa_sign(digest_bytes, raw=True)
-        item.sig_ser = privkey.ecdsa_serialize(sig_check)
+        item.sig_ser = privkey.sign(digest_bytes, hasher=None)
+        # item.sig_ser = privkey.ecdsa_serialize(sig_check)
         return item
 
     @classmethod
@@ -176,12 +176,12 @@ class NulsSignature(BaseNulsData):
             return output
 
     def verify(self, message):
-        pub = PublicKey(self.pub_key, raw=True)
+        pub = PublicKey(self.pub_key)
         message = VarInt(len(message)).encode() + message
         LOGGER.debug("Comparing with %r" % (MESSAGE_TEMPLATE % message))
         try:
-            sig_raw = pub.ecdsa_deserialize(self.sig_ser)
-            good = pub.ecdsa_verify(MESSAGE_TEMPLATE % message, sig_raw)
+            # sig_raw = pub.ecdsa_deserialize(self.sig_ser)
+            good = pub.verify(self.sig_ser, MESSAGE_TEMPLATE % message)
         except Exception:
             LOGGER.exception("Verification failed")
             good = False
