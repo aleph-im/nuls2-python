@@ -4,7 +4,7 @@ import string
 try:
     from coincurve import PrivateKey, PublicKey
 except ImportError:
-    print("Can't import secp256k1, can't verify and sign tx.")
+    print("Can't import coincurve, can't verify and sign tx.")
 import six
 import time
 import struct
@@ -430,7 +430,6 @@ def recover_message_address(signature, message, chain_id=1, prefix=None, address
     If no address is returned, signature is bad.
     """
     message = prepare_message(message)
-    print(message)
     pub = PublicKey.from_signature_and_message(coincurve_sig(signature), message)
     
     addr_hash = public_key_to_hash(pub.format(), chain_id=chain_id, address_type=address_type)
