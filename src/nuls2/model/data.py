@@ -437,4 +437,4 @@ def recover_message_address(signature, message, chain_id=1, prefix=None, address
         prefix = NETWORKS[chain_id]
     address = address_from_hash(addr_hash, prefix=prefix)
 
-        return address
+    return address
