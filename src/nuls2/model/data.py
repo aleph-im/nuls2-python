@@ -2,7 +2,7 @@ from hashlib import sha256
 from binascii import hexlify, unhexlify
 import string
 try:
-    from secp256k1 import PrivateKey, PublicKey
+    from coincurve import PrivateKey, PublicKey
 except ImportError:
     print("Can't import secp256k1, can't verify and sign tx.")
 import six
@@ -21,6 +21,11 @@ NETWORKS = {
     1: 'NULS',
     2: 'tNULS'
 }
+
+RECID_MIN = 0
+RECID_MAX = 3
+RECID_UNCOMPR = 27
+LEN_COMPACT_SIG = 65
 
 B58_DIGITS = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
 MESSAGE_TEMPLATE = b"\x18NULS Signed Message:\n%b"
@@ -109,7 +114,7 @@ def public_key_to_hash(pub_key, chain_id=2, address_type=1):
     return computed_address
 
 class BaseNulsData:
-    def _pre_parse(buffer, cursor=None, length=None):
+    def _pre_parse(self, buffer, cursor=None, length=None):
         if cursor is not None:
             buffer = buffer[cursor:]
         if length is not None:
@@ -155,15 +160,7 @@ class NulsSignature(BaseNulsData):
 
     @classmethod
     def sign_message(cls, pri_key, message):
-        # we expect to have a private key as bytes. unhexlify it before passing
-        privkey = PrivateKey(pri_key, raw=True)
-        item = cls()
-        message = VarInt(len(message)).encode() + message
-        item.pub_key = privkey.pubkey.serialize()
-        # item.digest_bytes = digest_bytes
-        sig_check = privkey.ecdsa_sign(MESSAGE_TEMPLATE % message)
-        item.sig_ser = privkey.ecdsa_serialize(sig_check)
-        return item
+        return sign_recoverable_message(pri_key, message)
 
     def serialize(self, with_length=False):
         output = b''
@@ -390,42 +387,55 @@ class VarInt:
         else:
             return bytes((255, )) + struct.pack("<Q", self.value)
 
-def sign_message(pri_key, message):
-    privkey = PrivateKey(pri_key, raw=True) # we expect to have a private key as bytes. unhexlify it before passing.
+def coincurve_sig(electrum_signature):
+    # coincurve := r + s + recovery_id
+    # where (0 <= recovery_id <= 3)
+    # https://github.com/bitcoin-core/secp256k1/blob/0b7024185045a49a1a6a4c5615bf31c94f63d9c4/src/modules/recovery/main_impl.h#L35
+    if len(electrum_signature) != LEN_COMPACT_SIG:
+        raise ValueError('Not a 65-byte compact signature.')
+    # Compute coincurve recid
+    recid = electrum_signature[0] - RECID_UNCOMPR
+    if not (RECID_MIN <= recid <= RECID_MAX):
+        raise ValueError('Recovery ID %d is not supported.' % recid)
+    recid_byte = int.to_bytes(recid, length=1, byteorder='big')
+    return electrum_signature[1:] + recid_byte
 
-    sig_check = privkey.ecdsa_sign(MESSAGE_TEMPLATE.format(message))
-    sig_ser, recid = privkey.ecdsa_recoverable_serialize(sig_check)
+def electrum_sig(coincurve_signature):
+    # electrum := recovery_id + r + s
+    # where (27 <= recovery_id <= 30)
+    # https://github.com/scintill/bitcoin-signature-tools/blob/ed3f5be5045af74a54c92d3648de98c329d9b4f7/key.cpp#L285
+    if len(coincurve_signature) != LEN_COMPACT_SIG:
+        raise ValueError('Not a 65-byte compact signature.')
+    # Compute Electrum recid
+    recid = coincurve_signature[-1] + RECID_UNCOMPR
+    if not (RECID_UNCOMPR + RECID_MIN <= recid <= RECID_UNCOMPR + RECID_MAX):
+        raise ValueError('Recovery ID %d is not supported.' % recid)
+    recid_byte = int.to_bytes(recid, length=1, byteorder='big')
+    return recid_byte + coincurve_signature[0:-1]
 
-    return (sig_ser, recid)
+def prepare_message(msg):
+    msg = VarInt(len(msg)).encode() + msg
+    msg = MESSAGE_TEMPLATE % msg
+    return msg
 
 def sign_recoverable_message(pri_key, message):
-    privkey = PrivateKey(pri_key, raw=True) # we expect to have a private key as bytes. unhexlify it before passing.
+    message = prepare_message(message)
+    privkey = PrivateKey(pri_key) # we expect to have a private key as bytes. unhexlify it before passing.
 
-    sig_check = privkey.ecdsa_sign_recoverable(MESSAGE_TEMPLATE.format(message))
-    sig_ser, recid = privkey.ecdsa_recoverable_serialize(sig_check)
+    sig_check = privkey.sign_recoverable(message)
+    return electrum_sig(sig_check)
 
-    return (sig_ser, recid)
-
-def verify_recoverable_message(signature, message, recid, network_id, prefix=None, address_type=1):
+def recover_message_address(signature, message, chain_id=1, prefix=None, address_type=1):
     """ Verifies a signature of a hash and returns the address that signed it.
     If no address is returned, signature is bad.
     """
-    empty = PublicKey(flags=ALL_FLAGS)
-    sig = empty.ecdsa_recoverable_deserialize(signature, args.recid)
-    msg = MESSAGE_TEMPLATE.format(message)
-    pubkey = empty.ecdsa_recover(msg, sig)
-    addr_hash = public_key_to_hash(pubkey.serialize(), chain_id=network_id, address_type=address_type)
+    message = prepare_message(message)
+    print(message)
+    pub = PublicKey.from_signature_and_message(coincurve_sig(signature), message)
+    
+    addr_hash = public_key_to_hash(pub.format(), chain_id=chain_id, address_type=address_type)
     if prefix is None:
-        prefix = NETWORKS[network_id]
+        prefix = NETWORKS[chain_id]
     address = address_from_hash(addr_hash, prefix=prefix)
 
-    try:
-        sig_raw = pub.ecdsa_deserialize(signature)
-        good = pub.ecdsa_verify(message, sig_raw)
-    except:
-        good = False
-
-    if good:
         return address
-    else:
-        return None
