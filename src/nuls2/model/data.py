@@ -104,7 +104,13 @@ def hash_from_address(address):
         raise NotImplementedError("transfers on other chains not implemented yet!")
     
     return b58_decode(address)[:-1]
-    
+
+def get_address(pubkey, chain_id, prefix=None):
+    phash = public_key_to_hash(pubkey, chain_id=chain_id)
+    if prefix is None:
+        prefix = NETWORKS[chain_id]
+    address = address_from_hash(phash, prefix=prefix)
+    return address
 
 def public_key_to_hash(pub_key, chain_id=2, address_type=1):
     sha256_digest = hashlib.sha256(pub_key).digest()
