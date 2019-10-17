@@ -192,8 +192,6 @@ class Transaction(BaseNulsData):
         output = b""
         if self.type in TX_TYPES_REGISTER:
             output += await TX_TYPES_REGISTER[self.type].to_buffer(self.module_data)
-        else:
-            output += b''
             
         return output
     
@@ -335,7 +333,7 @@ class Transaction(BaseNulsData):
         return cursor
     
     async def serialize(self, for_hash=False, update_coins=True, update_data=True):
-        if update_data:
+        if update_data and self.type in TX_TYPES_REGISTER:
             self.raw_tx_data = await self._write_data()
         if update_coins:
             self.raw_coin_data = await self._write_coin_data()
