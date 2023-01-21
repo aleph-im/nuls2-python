@@ -1,13 +1,9 @@
 import asyncio
-import aiohttp
-import logging
-import base64
-import operator
-
-from aiohttp import web, ClientSession
 import functools
+
+import aiohttp
 import jsonrpc_base
-from jsonrpc_base import JSONRPCError, TransportError, ProtocolError
+from jsonrpc_base import TransportError
 
 
 class Server(jsonrpc_base.Server):
@@ -29,13 +25,12 @@ class Server(jsonrpc_base.Server):
         if content_type != -1:
             self._json_args['content_type'] = content_type
 
-    @asyncio.coroutine
-    def send_message(self, message):
+    async def send_message(self, message):
         """Send the HTTP message to the server and return the message response.
         No result is returned if message is a notification.
         """
         try:
-            response = yield from self._request(data=message.serialize())
+            response = await self._request(data=message.serialize())
         except (aiohttp.ClientError, asyncio.TimeoutError) as exc:
             raise TransportError('Transport Error', message, exc)
 
@@ -43,11 +38,11 @@ class Server(jsonrpc_base.Server):
             raise TransportError('HTTP %d %s' % (response.status, response.reason), message)
 
         if message.response_id is None:
-            # Message is notification, so no response is expcted.
+            # Message is notification, so no response is expected.
             return None
 
         try:
-            response_data = yield from response.json(**self._json_args)
+            response_data = await response.json(**self._json_args)
         except ValueError as value_error:
             raise TransportError('Cannot deserialize response body', message, value_error)
 
