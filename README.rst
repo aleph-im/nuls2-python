@@ -1,16 +1,16 @@
-============
-nuls2-python
-============
+=====================
+Aleph.im NULS2 Python
+=====================
 
-
-Add a short description here!
-
+Python library to interact with the NULS2 blockchain.
 
 Description
 ===========
 
-A longer description of your project goes here...
+Features:
 
+* Sign data with a NULS2 private key.
+* Verify signatures.
 
 Note
 ====
