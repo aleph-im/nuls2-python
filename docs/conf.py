@@ -35,7 +35,7 @@ except ImportError:
     from sphinx import apidoc
 
 output_dir = os.path.join(__location__, "api")
-module_dir = os.path.join(__location__, "../src/nuls2_python")
+module_dir = os.path.join(__location__, "../src/nuls2")
 try:
     shutil.rmtree(output_dir)
 except FileNotFoundError:
@@ -43,7 +43,7 @@ except FileNotFoundError:
 
 try:
     import sphinx
-    from pkg_resources import parse_version
+    from packaging.version import parse as parse_version
 
     cmd_line_template = "sphinx-apidoc -f -o {outputdir} {moduledir}"
     cmd_line = cmd_line_template.format(outputdir=output_dir, moduledir=module_dir)
@@ -151,7 +151,7 @@ html_theme_options = {
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
 try:
-    from nuls2_python import __version__ as version
+    from nuls2 import __version__ as version
 except ImportError:
     pass
 else:
