@@ -1,11 +1,19 @@
 # -*- coding: utf-8 -*-
-from pkg_resources import get_distribution, DistributionNotFound
+try:
+    from importlib.metadata import version, PackageNotFoundError
+except ImportError:  # pragma: no cover
+    try:
+        from importlib_metadata import version, PackageNotFoundError
+    except ImportError:  # pragma: no cover
+        version = None
+        PackageNotFoundError = Exception
+
 
 try:
     # Change here if project is renamed and does not equal the package name
-    dist_name = 'nuls2-python'
-    __version__ = get_distribution(dist_name).version
-except DistributionNotFound:
+    dist_name = 'aleph-nuls2'
+    __version__ = version(dist_name)
+except (PackageNotFoundError, TypeError):
     __version__ = 'unknown'
 finally:
-    del get_distribution, DistributionNotFound
+    del version, PackageNotFoundError

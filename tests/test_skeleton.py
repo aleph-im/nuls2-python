@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import pytest
-from nuls2_python.skeleton import fib
+from nuls2.skeleton import fib
 
 __author__ = "Jonathan Schemoul"
 __copyright__ = "Jonathan Schemoul"
